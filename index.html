@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IdeaVault — Shared Reel Reference Library</title>
+  <meta name="description" content="IdeaVault — the team's shared Instagram Reel inspiration library. Reels sent by DM to the team account land here automatically." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23191713'/%3E%3Cpath d='M18 22h4v20h-4zM28 22h8v4h-4v4h4v4h-4v4h4v4h-8zM42 22h4v8h-4zM42 34h4v8h-4z' fill='%23f1ebdd'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <noscript>
+    <div class="noscript">IdeaVault needs JavaScript to run. Please enable it and reload.</div>
+  </noscript>
+
+  <!-- ================================================================
+       Login gate — shown until a team member signs in.
+       IdeaVault is deliberately NOT public: a GitHub Pages URL is
+       world-readable, so all data sits behind Supabase auth + RLS.
+  ================================================================= -->
+  <section id="login-view" class="login-view" hidden>
+    <div class="login-card">
+      <p class="login-eyebrow">IdeaVault</p>
+      <h1 class="login-title">Sign in to the team library</h1>
+      <p class="login-sub">
+        The shared Reel reference library. Accounts are created by an administrator —
+        there is no public sign-up.
+      </p>
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="email" autocomplete="email" required spellcheck="false" />
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <p id="login-error" class="form-error" hidden></p>
+        <button id="login-submit" class="btn btn--solid btn--block" type="submit">Sign in</button>
+      </form>
+      <p class="login-footnote">
+        Reels sent by Instagram DM to
+        <a id="login-ig-link" href="https://www.instagram.com/ideavault-ig" target="_blank" rel="noopener">@IdeaVault-IG</a>
+        land in the library automatically.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       App shell
+  ================================================================= -->
+  <div id="app-view" class="app" hidden>
+
+    <header class="masthead">
+      <div class="masthead-copy">
+        <p class="eyebrow">Shared reference library · Instagram Reels</p>
+        <h1 class="wordmark">IdeaVault</h1>
+        <p class="masthead-intro">
+          Every Reel the team sends by DM to
+          <a id="ig-handle-link" class="ig-handle" href="https://www.instagram.com/ideavault-ig" target="_blank" rel="noopener">@IdeaVault-IG</a>
+          lands here automatically — one library for all of us, in place of references
+          scattered across accounts and conversations. Browse, search, categorise,
+          bookmark, and open the originals.
+        </p>
+      </div>
+      <div class="masthead-side">
+        <div class="user-chip" id="user-chip" hidden>
+          <span class="user-chip-avatar" id="user-avatar" aria-hidden="true"></span>
+          <span class="user-chip-name" id="user-name"></span>
+        </div>
+        <button id="logout-btn" class="btn btn--ghost btn--small" type="button" hidden>Sign out</button>
+      </div>
+    </header>
+
+    <p id="demo-banner" class="demo-banner" hidden>
+      <strong>Demo mode.</strong>
+      Showing local sample data so you can explore the interface — nothing is shared or
+      saved to a database. Connect your Supabase project in <code>config.js</code> to go live.
+    </p>
+
+    <nav class="tabs" role="tablist" aria-label="Library views">
+      <button class="tab is-active" id="tab-library" role="tab" aria-selected="true" aria-controls="grid" data-view="library" type="button">Library</button>
+      <button class="tab" id="tab-bookmarks" role="tab" aria-selected="false" aria-controls="grid" data-view="bookmarks" type="button">Bookmarked</button>
+      <button class="tab" id="tab-ingest" role="tab" aria-selected="false" aria-controls="ingest-panel" data-view="ingest" type="button">Ingest log</button>
+      <span class="tabs-meta" id="count-meta" role="status">—</span>
+    </nav>
+
+    <section class="toolbar" id="toolbar" aria-label="Search and filters">
+      <div class="toolbar-search">
+        <label class="sr-only" for="search-input">Search the library</label>
+        <input id="search-input" type="search" placeholder="Search title, creator, tags, notes…" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="toolbar-controls">
+        <label class="control">
+          <span class="control-label">Category</span>
+          <select id="category-select" aria-label="Filter by category"></select>
+        </label>
+        <label class="control">
+          <span class="control-label">Sort</span>
+          <select id="sort-select" aria-label="Sort order">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </label>
+        <button id="refresh-btn" class="btn btn--ghost btn--small" type="button" title="Reload the library">Refresh</button>
+        <button id="add-btn" class="btn btn--solid btn--small" type="button">+ Add reference</button>
+      </div>
+    </section>
+
+    <main id="main" class="main">
+      <section id="grid" class="grid" aria-live="polite" aria-label="Reel references"></section>
+
+      <section id="empty-state" class="empty-state" hidden>
+        <p class="empty-eyebrow" id="empty-eyebrow"></p>
+        <h2 class="empty-title" id="empty-title"></h2>
+        <p class="empty-body" id="empty-body"></p>
+        <ol class="empty-steps" id="empty-steps" hidden>
+          <li>Open Instagram and find a Reel worth keeping.</li>
+          <li>Share it <em>by DM</em> to the team account <strong>@IdeaVault-IG</strong>.</li>
+          <li>It appears here for everyone within seconds — no forms, no copying links around.</li>
+        </ol>
+        <button id="empty-add-btn" class="btn btn--ghost" type="button" hidden>Add one manually instead</button>
+        <button id="empty-clear-btn" class="btn btn--ghost" type="button" hidden>Clear search &amp; filters</button>
+      </section>
+
+      <section id="ingest-panel" class="ingest-panel" hidden aria-label="Ingestion log">
+        <p class="ingest-note">
+          Incoming Instagram DM events as received by the webhook, newest first. This is the
+          visibility layer for ingestion: messages that arrive without a usable Reel link are
+          logged here instead of being dropped silently. Payloads are stored in the database
+          for debugging; secrets are never logged.
+        </p>
+        <div class="ingest-table-wrap">
+          <table class="ingest-table">
+            <thead>
+              <tr>
+                <th scope="col">Received</th>
+                <th scope="col">Status</th>
+                <th scope="col">From</th>
+                <th scope="col">Reel link</th>
+                <th scope="col">Detail</th>
+              </tr>
+            </thead>
+            <tbody id="ingest-body"></tbody>
+          </table>
+        </div>
+        <p class="ingest-empty" id="ingest-empty" hidden>No webhook events recorded yet.</p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <button type="button" data-view="library">Library</button>
+        <button type="button" data-view="bookmarks">Bookmarked</button>
+        <button type="button" data-view="ingest">Ingest log</button>
+        <a href="https://www.instagram.com/ideavault-ig" target="_blank" rel="noopener">Instagram</a>
+      </nav>
+      <p class="footer-note">
+        IdeaVault — an internal tool for a five-person creative team. References arrive
+        automatically via Instagram DM; the originals always stay on Instagram.
+      </p>
+    </footer>
+  </div>
+
+  <!-- Modals and toasts are rendered here by app.js -->
+  <div id="modal-root" class="modal-root" hidden></div>
+  <div id="toast-root" class="toast-root" role="status" aria-live="polite"></div>
+
+  <!-- Supabase browser client (public anon key only — see config.js).
+       Loaded defensively: if the CDN is unreachable the app still runs
+       in demo mode. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.__supabaseCdnFailed=true"></script>
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+  <script src="db.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
